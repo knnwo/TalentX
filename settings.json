@@ -1,0 +1,4 @@
+{
+  "Lua.diagnostics.globals": ["TalentXDB"],
+  "Lua.runtime.version": "Lua 5.1"
+}

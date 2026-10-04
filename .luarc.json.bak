@@ -1,0 +1,5 @@
+{
+  "runtime.version": "Lua 5.1",
+  "diagnostics.globals": ["TalentXDB", "CreateFrame", "SlashCmdList"],
+  "workspace.checkThirdParty": false
+}
