@@ -1,4 +1,4 @@
-local addonName = ...
+local addonName, ns = ...
 
 local REQUIRE_CONFIRM = false   -- set to true to get a "Are you sure?" popup first
 local debugMode = false
@@ -230,6 +230,8 @@ SlashCmdList["TALENTX"] = function(msg)
         print("TalentX: Alt+Left-click required:", TalentXDB.altClick and "ON" or "OFF")
     elseif msg == "undo" then
         RestoreLast()
+    elseif msg == "options" then
+        if ns.OpenOptions then ns.OpenOptions() end
     elseif msg == "debug" then
         debugMode = not debugMode
         print("TalentX debug:", debugMode and "on" or "off")

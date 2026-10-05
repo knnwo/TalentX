@@ -7,3 +7,4 @@
 ## SavedVariables: TalentXDB
 
 TalentX.lua
+Options.lua
