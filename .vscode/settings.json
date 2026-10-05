@@ -21,6 +21,7 @@
         "NO",
         "StaticPopup_Show",
         "PlayerUtil",
-        "STANDARD_TEXT_FONT"
+        "STANDARD_TEXT_FONT",
+        "PlayerSpellsFrame"
     ]
 }

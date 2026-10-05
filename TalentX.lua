@@ -16,12 +16,40 @@ StaticPopupDialogs["TALENTX_CONFIRM_DELETE"] = {
     hideOnEscape = true,
 }
 
+local MAX_UNDO = 5
+
+-- Stores an export string of the loadout so it can be restored later
+local function SaveForUndo(configID, name)
+    local ok, str = pcall(C_Traits.GenerateImportString, configID)
+    if not ok or type(str) ~= "string" or str == "" then
+        return false
+    end
+
+    TalentXDB.deleted = TalentXDB.deleted or {}
+    table.insert(TalentXDB.deleted, 1, {
+        name = name,
+        importString = str,
+        specID = PlayerUtil.GetCurrentSpecID(),
+        time = time(),
+    })
+    while #TalentXDB.deleted > MAX_UNDO do
+        table.remove(TalentXDB.deleted)
+    end
+    return true
+end
+
 local function DeleteLoadout(configID, name)
     if InCombatLockdown() then
         print("|cffff4040TalentX:|r can't delete loadouts in combat.")
         return
     end
-    C_ClassTalents.DeleteConfig(configID)
+
+    if SaveForUndo(configID, name) then
+        C_ClassTalents.DeleteConfig(configID)
+        print("TalentX: deleted \"" .. name .. "\" (backup saved)")
+    else
+        print("|cffff4040TalentX:|r couldn't back up \"" .. name .. "\", so it was NOT deleted.")
+    end
 end
 
 local function SetCrossTexture(tex)
@@ -153,6 +181,45 @@ frame:SetScript("OnEvent", function()
     end
 end)
 
+local function RestoreLast()
+    local list = TalentXDB and TalentXDB.deleted
+    if not list or #list == 0 then
+        print("TalentX: nothing to undo.")
+        return
+    end
+    if InCombatLockdown() then
+        print("|cffff4040TalentX:|r can't restore loadouts in combat.")
+        return
+    end
+
+    local entry = list[1]
+    if entry.specID ~= PlayerUtil.GetCurrentSpecID() then
+        print("|cffff4040TalentX:|r \"" .. entry.name .. "\" belongs to a different spec. Switch to it first.")
+        return
+    end
+    if not C_ClassTalents.CanCreateNewConfig() then
+        print("|cffff4040TalentX:|r no free loadout slot. Delete another loadout first.")
+        return
+    end
+
+    -- Blizzard's talent window has to be open/loaded for its import code to exist
+    local frame = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+    if not (frame and frame.ImportLoadout) then
+        print("|cffff4040TalentX:|r open the talents window (N) and try again.")
+        return
+    end
+
+    local ok, result = pcall(frame.ImportLoadout, frame, entry.importString, entry.name)
+    if ok and result then
+        table.remove(list, 1)
+        print("TalentX: restored \"" .. entry.name .. "\".")
+    elseif ok then
+        print("TalentX: Blizzard's import didn't report success. Check your loadout list for \"" .. entry.name .. "\".")
+    else
+        print("|cffff4040TalentX:|r restore failed: " .. tostring(result))
+    end
+end
+
 SLASH_TALENTX1 = "/talentx"
 SlashCmdList["TALENTX"] = function(msg)
     msg = (msg or ""):lower()
@@ -161,6 +228,8 @@ SlashCmdList["TALENTX"] = function(msg)
     if msg == "alt" then
         TalentXDB.altClick = not TalentXDB.altClick
         print("TalentX: Alt+Left-click required:", TalentXDB.altClick and "ON" or "OFF")
+    elseif msg == "undo" then
+        RestoreLast()
     elseif msg == "debug" then
         debugMode = not debugMode
         print("TalentX debug:", debugMode and "on" or "off")
