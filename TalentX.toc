@@ -1,9 +1,9 @@
 ## Interface: 120100
 ## Title: TalentX
-## Notes: Adds a delete (X) button to talent loadouts. Alt+Left-click to delete.
-## Author: Knwo-Ghostlands
-## Version: 0.1.0
-## IconTexture: Interface\Icons\INV_Misc_QuestionMark
+## Notes: Delete talent loadouts with one click, with undo. Alt+Left-click safety.
+## Author: ContraZoom
+## Version: 0.2.0
+## IconTexture: Interface\RaidFrame\ReadyCheck-NotReady
 ## SavedVariables: TalentXDB
 
 TalentX.lua
