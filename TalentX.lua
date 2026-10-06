@@ -1,22 +1,7 @@
 local addonName, ns = ...
 
-local REQUIRE_CONFIRM = false   -- set to true to get a "Are you sure?" popup first
 local debugMode = false
 local allX = {}
-
-StaticPopupDialogs["TALENTX_CONFIRM_DELETE"] = {
-    text = "Delete talent loadout \"%s\"?",
-    button1 = YES,
-    button2 = NO,
-    OnAccept = function(self, configID)
-        C_ClassTalents.DeleteConfig(configID)
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-}
-
-local MAX_UNDO = 5
 
 -- Stores an export string of the loadout so it can be restored later
 local function SaveForUndo(configID, name)
@@ -32,7 +17,10 @@ local function SaveForUndo(configID, name)
         specID = PlayerUtil.GetCurrentSpecID(),
         time = time(),
     })
-    while #TalentXDB.deleted > MAX_UNDO do
+
+    -- NEW (slider): limit comes from the saved setting
+    local limit = TalentXDB.maxUndo or 5
+    while #TalentXDB.deleted > limit do
         table.remove(TalentXDB.deleted)
     end
     return true
@@ -68,7 +56,7 @@ local function GetDeleteButton(row)
     table.insert(allX, x)
     x:SetSize(18, 18)
     x:SetHitRectInsets(-4, -4, -2, -2)
-    x:SetPoint("RIGHT", row, "RIGHT", -20, 0)
+    x:SetPoint("RIGHT", row, "RIGHT", -32, 0)
     x:SetFrameLevel(row:GetFrameLevel() + 5)
 
     local icon = x:CreateTexture(nil, "OVERLAY")
@@ -77,7 +65,6 @@ local function GetDeleteButton(row)
     icon:SetAlpha(0.75)
     x.icon = icon
 
-    -- brightens the cross on hover
     local glow = x:CreateTexture(nil, "HIGHLIGHT")
     glow:SetAllPoints()
     SetCrossTexture(glow)
@@ -86,6 +73,7 @@ local function GetDeleteButton(row)
 
     x:SetScript("OnEnter", function(self)
         self.icon:SetAlpha(1)
+        if TalentXDB and TalentXDB.showTooltip == false then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Delete loadout", 1, 0.1, 0.1)
         if self.loadoutName then
@@ -106,16 +94,68 @@ local function GetDeleteButton(row)
     return x
 end
 
+local function RestoreLast()
+    local list = TalentXDB and TalentXDB.deleted
+    if not list or #list == 0 then
+        print("TalentX: nothing to undo.")
+        return
+    end
+    if InCombatLockdown() then
+        print("|cffff4040TalentX:|r can't restore loadouts in combat.")
+        return
+    end
+
+    local entry = list[1]
+    if entry.specID ~= PlayerUtil.GetCurrentSpecID() then
+        print("|cffff4040TalentX:|r \"" .. entry.name .. "\" belongs to a different spec. Switch to it first.")
+        return
+    end
+    if not C_ClassTalents.CanCreateNewConfig() then
+        print("|cffff4040TalentX:|r no free loadout slot. Delete another loadout first.")
+        return
+    end
+
+    local frame = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+    if not (frame and frame.ImportLoadout) then
+        print("|cffff4040TalentX:|r open the talents window (N) and try again.")
+        return
+    end
+
+    local specID = entry.specID
+    local before = #(C_ClassTalents.GetConfigIDsBySpecID(specID) or {})
+
+    local ok, err = pcall(frame.ImportLoadout, frame, entry.importString, entry.name)
+    if not ok then
+        print("|cffff4040TalentX:|r restore failed: " .. tostring(err))
+        return
+    end
+
+    -- Give the server a moment, then check a loadout was really created
+    C_Timer.After(1, function()
+        local after = #(C_ClassTalents.GetConfigIDsBySpecID(specID) or {})
+        if after > before then
+            for i, e in ipairs(list) do
+                if e == entry then table.remove(list, i) break end
+            end
+            print("TalentX: restored \"" .. entry.name .. "\".")
+            if frame.RefreshLoadoutOptions then pcall(frame.RefreshLoadoutOptions, frame) end
+        else
+            print("|cffff4040TalentX:|r the game did not create the loadout. Your backup of \"" .. entry.name .. "\" is still saved.")
+        end
+    end)
+end
+
+ns.RestoreLast = RestoreLast
+
 Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, contextData)
     -- Hide every X first; only real loadout rows turn theirs back on below
     for _, b in ipairs(allX) do b:Hide() end
 
-    -- Build lookups of this spec's loadouts
     local nameByID, idByName = {}, {}
     local specID = PlayerUtil.GetCurrentSpecID()
     local starterID = Constants and Constants.TraitConsts and Constants.TraitConsts.STARTER_BUILD_TRAIT_CONFIG_ID
 
-    -- Currently selected loadout (protected from the X). pcall keeps a failure here from breaking the menu.
+    -- Currently selected loadout (protected from the X)
     local okActive, activeID = pcall(C_ClassTalents.GetLastSelectedSavedConfigID, specID)
     if not okActive then activeID = nil end
 
@@ -136,7 +176,6 @@ Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, co
             print("TalentX row", index, tostring(desc.text), tostring(desc.data), "active:", tostring(activeID))
         end
 
-        -- Prefer the configID if the row carries it, otherwise match by name
         local configID
         if type(desc.data) == "number" and nameByID[desc.data] then
             configID = desc.data
@@ -161,8 +200,6 @@ Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, co
                 x:Show()
             end)
         elseif desc.AddInitializer then
-            -- Not a deletable loadout (Starter Build, New Loadout, Import, Share, active loadout):
-            -- make sure no leftover X from a recycled row is visible.
             desc:AddInitializer(function(row)
                 if row.TalentXDelete then
                     row.TalentXDelete:Hide()
@@ -172,6 +209,7 @@ Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, co
     end
 end)
 
+-- Defaults for saved settings
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:SetScript("OnEvent", function()
@@ -179,46 +217,14 @@ frame:SetScript("OnEvent", function()
     if TalentXDB.altClick == nil then
         TalentXDB.altClick = true
     end
+    if TalentXDB.showTooltip == nil then
+        TalentXDB.showTooltip = true
+    end
+    -- NEW (slider)
+    if TalentXDB.maxUndo == nil then
+        TalentXDB.maxUndo = 5
+    end
 end)
-
-local function RestoreLast()
-    local list = TalentXDB and TalentXDB.deleted
-    if not list or #list == 0 then
-        print("TalentX: nothing to undo.")
-        return
-    end
-    if InCombatLockdown() then
-        print("|cffff4040TalentX:|r can't restore loadouts in combat.")
-        return
-    end
-
-    local entry = list[1]
-    if entry.specID ~= PlayerUtil.GetCurrentSpecID() then
-        print("|cffff4040TalentX:|r \"" .. entry.name .. "\" belongs to a different spec. Switch to it first.")
-        return
-    end
-    if not C_ClassTalents.CanCreateNewConfig() then
-        print("|cffff4040TalentX:|r no free loadout slot. Delete another loadout first.")
-        return
-    end
-
-    -- Blizzard's talent window has to be open/loaded for its import code to exist
-    local frame = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-    if not (frame and frame.ImportLoadout) then
-        print("|cffff4040TalentX:|r open the talents window (N) and try again.")
-        return
-    end
-
-    local ok, result = pcall(frame.ImportLoadout, frame, entry.importString, entry.name)
-    if ok and result then
-        table.remove(list, 1)
-        print("TalentX: restored \"" .. entry.name .. "\".")
-    elseif ok then
-        print("TalentX: Blizzard's import didn't report success. Check your loadout list for \"" .. entry.name .. "\".")
-    else
-        print("|cffff4040TalentX:|r restore failed: " .. tostring(result))
-    end
-end
 
 SLASH_TALENTX1 = "/talentx"
 SlashCmdList["TALENTX"] = function(msg)
@@ -236,6 +242,6 @@ SlashCmdList["TALENTX"] = function(msg)
         debugMode = not debugMode
         print("TalentX debug:", debugMode and "on" or "off")
     else
-        print("TalentX commands: /talentx alt, /talentx debug")
+        print("TalentX commands: /talentx alt, undo, options, debug")
     end
 end
