@@ -27,8 +27,9 @@ restore button on the options page.
 - Restoring needs a free loadout slot, a loadout from your current spec, and the
   talents window loaded (press N once if it tells you to).
 - You can't delete or restore loadouts while in combat.
-- Backups are kept per character in the addon's saved variables. The number
-  kept can be changed on the options page.
+- Backups are stored account-wide in the addon's saved variables and can only be
+  restored on a character of the matching spec. The number kept can be changed
+  on the options page.
 
 ## Installation
 Copy the `TalentX` folder into `World of Warcraft/_retail_/Interface/AddOns/`.
