@@ -1,0 +1,7 @@
+package-as: TalentX
+
+ignore:
+  - .github
+  - .gitignore
+  - .vscode
+  - README.md
