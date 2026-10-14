@@ -4,4 +4,6 @@ ignore:
   - .github
   - .gitignore
   - .vscode
+  - .luarc.json.bak
+  - settings.json
   - README.md
