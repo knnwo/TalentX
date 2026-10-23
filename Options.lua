@@ -47,7 +47,7 @@ sliderHigh:SetText("10")
 
 slider:SetScript("OnValueChanged", function(self, value)
     value = math.floor(value + 0.5)
-    sliderText:SetText("Deleted loadouts kept for undo: " .. value)
+    sliderText:SetText("Deleted loadouts kept per session: " .. value)
     if not TalentXDB then return end
     TalentXDB.maxUndo = value
     local list = TalentXDB.deleted
