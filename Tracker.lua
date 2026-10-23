@@ -28,6 +28,39 @@ local text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 text:SetPoint("CENTER")
 bar.text = text
 
+-- Resizing: drag the small grip in the bottom-right corner
+bar:SetResizable(true)
+if bar.SetResizeBounds then
+    bar:SetResizeBounds(100, 20, 600, 80)
+else
+    bar:SetMinResize(100, 20)
+    bar:SetMaxResize(600, 80)
+end
+
+local grip = CreateFrame("Button", nil, bar)
+grip:SetSize(14, 14)
+grip:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", -1, 1)
+grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+grip:SetScript("OnMouseDown", function()
+    bar:StartSizing("BOTTOMRIGHT")
+end)
+grip:SetScript("OnMouseUp", function()
+    bar:StopMovingOrSizing()
+end)
+
+-- Keep the text sized to the bar
+local fontPath = GameFontNormal:GetFont()
+text:SetWordWrap(false)
+
+local function ApplySize(self, width, height)
+    text:SetWidth(width - 16)
+    text:SetFont(fontPath, math.max(8, math.floor(height * 0.5)), "")
+end
+bar:SetScript("OnSizeChanged", ApplySize)
+ApplySize(bar, bar:GetWidth(), bar:GetHeight())
+
 -- Works out the name of the currently selected loadout
 local function GetActiveLoadoutName()
     local specID = PlayerUtil.GetCurrentSpecID()
