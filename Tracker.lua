@@ -85,13 +85,22 @@ end
 bar:SetScript("OnSizeChanged", ApplySize)
 ApplySize(bar, bar:GetWidth(), bar:GetHeight())
 
--- Applies the saved options: shown or hidden, locked or unlocked
+-- Applies the saved options: shown or hidden, locked or unlocked, background opacity
 function ns.ApplyTrackerSettings()
     local db = TalentXDB or {}
     local locked = db.trackerLocked == true
     bar:SetShown(db.trackerShown ~= false)
     bar:EnableMouse(not locked)
     grip:SetShown(not locked)
+    bar:SetBackdropColor(0, 0, 0, db.trackerOpacity or 0.6)
+end
+
+-- Puts the bar back at its default position and size
+function ns.ResetTracker()
+    if TalentXDB then TalentXDB.tracker = nil end
+    bar:ClearAllPoints()
+    bar:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+    bar:SetSize(220, 28)
 end
 
 -- Works out the name of the currently selected loadout

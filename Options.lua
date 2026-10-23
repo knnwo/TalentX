@@ -108,6 +108,37 @@ lockCheck:SetScript("OnClick", function(self)
     if ns.ApplyTrackerSettings then ns.ApplyTrackerSettings() end
 end)
 
+-- Slider: background opacity of the bar
+local opacitySlider = CreateFrame("Slider", "TalentXOpacitySlider", panel, "OptionsSliderTemplate")
+opacitySlider:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 6, -32)
+opacitySlider:SetWidth(220)
+opacitySlider:SetMinMaxValues(0, 100)
+opacitySlider:SetValueStep(5)
+opacitySlider:SetObeyStepOnDrag(true)
+
+local opacityText = opacitySlider.Text or _G["TalentXOpacitySliderText"]
+local opacityLow = opacitySlider.Low or _G["TalentXOpacitySliderLow"]
+local opacityHigh = opacitySlider.High or _G["TalentXOpacitySliderHigh"]
+opacityLow:SetText("0%")
+opacityHigh:SetText("100%")
+
+opacitySlider:SetScript("OnValueChanged", function(self, value)
+    value = math.floor(value + 0.5)
+    opacityText:SetText("Bar background opacity: " .. value .. "%")
+    if not TalentXDB then return end
+    TalentXDB.trackerOpacity = value / 100
+    if ns.ApplyTrackerSettings then ns.ApplyTrackerSettings() end
+end)
+
+-- Button: reset the bar's position and size
+local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+resetBtn:SetSize(200, 26)
+resetBtn:SetPoint("TOPLEFT", opacitySlider, "BOTTOMLEFT", -6, -28)
+resetBtn:SetText("Reset bar position and size")
+resetBtn:SetScript("OnClick", function()
+    if ns.ResetTracker then ns.ResetTracker() end
+end)
+
 -- Saved settings aren't loaded when this file runs, so read them each time the page opens
 panel:SetScript("OnShow", function()
     altCheck:SetChecked(TalentXDB and TalentXDB.altClick)
@@ -116,7 +147,10 @@ panel:SetScript("OnShow", function()
     RefreshRestoreButton()
     showCheck:SetChecked(not (TalentXDB and TalentXDB.trackerShown == false))
     lockCheck:SetChecked(TalentXDB and TalentXDB.trackerLocked == true)
+    opacitySlider:SetValue(((TalentXDB and TalentXDB.trackerOpacity) or 0.6) * 100)
 end)
+
+
 
 -- Register the page in the game's AddOns settings
 local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
