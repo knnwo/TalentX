@@ -6,7 +6,8 @@
         "SlashCmdList",
         "Menu",
         "PlayerSpellsFrame",
-        "GameTooltip"
+        "GameTooltip",
+        "UIErrorsFrame"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {

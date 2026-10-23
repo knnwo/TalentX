@@ -49,6 +49,7 @@ end)
 
 local text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 text:SetPoint("CENTER")
+text:SetText("Loading...")
 bar.text = text
 
 -- Resizing: drag the small grip in the bottom-right corner
@@ -103,26 +104,64 @@ function ns.ResetTracker()
     bar:SetSize(220, 28)
 end
 
--- Works out the name of the currently selected loadout
-local function GetActiveLoadoutName()
+-- Checks whether a config ID is one of this spec's saved loadouts
+local function IsSavedLoadout(specID, configID)
+    for _, id in ipairs(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
+        if id == configID then return true end
+    end
+    return false
+end
+
+-- Works out what the bar should say. Returns the text and a state:
+-- "ok", "starter", "none" (no loadout selected), "empty" (no saved loadouts yet) or "unknown"
+local function GetActiveLoadoutState()
     local specID = PlayerUtil.GetCurrentSpecID()
-    if not specID then return "No spec" end
+    if not specID then return "No spec", "unknown" end
 
     -- Starter Build has no saved loadout of its own
     if C_ClassTalents.GetStarterBuildActive and C_ClassTalents.GetStarterBuildActive() then
-        return "Starter Build"
+        return "Starter Build", "starter"
     end
 
+    -- No saved loadouts at all (also what we see before the game has loaded the list)
+    local list = C_ClassTalents.GetConfigIDsBySpecID(specID) or {}
+    if #list == 0 then return "No saved loadouts", "empty" end
+
     local ok, configID = pcall(C_ClassTalents.GetLastSelectedSavedConfigID, specID)
-    if not ok or not configID then return "Unknown loadout" end
-    if configID == -2 then return "Starter Build" end
+    if not ok then return "Unknown loadout", "unknown" end
+    if configID == -2 then return "Starter Build", "starter" end
+
+    -- Nothing stored, or the stored loadout is no longer in the list
+    if not configID or not IsSavedLoadout(specID, configID) then
+        return "No loadout selected", "none"
+    end
 
     local info = C_Traits.GetConfigInfo(configID)
-    return (info and info.name) or "Unknown loadout"
+    if info and info.name then return info.name, "ok" end
+    return "Unknown loadout", "unknown"
 end
 
+local lastState
+
 function ns.UpdateTracker()
-    bar.text:SetText(GetActiveLoadoutName())
+    local name, state = GetActiveLoadoutState()
+    bar.text:SetText(name)
+
+    if state == "none" then
+        bar.text:SetTextColor(1, 0.1, 0.1)
+        -- Alert once each time the "none" state begins
+        if lastState ~= "none" then
+            print("|cffff4040TalentX:|r no talent loadout is selected.")
+            UIErrorsFrame:AddMessage("No talent loadout selected", 1, 0.1, 0.1)
+        end
+    elseif state == "starter" then
+        -- Same blue as "Starter Build" in the loadout menu
+        bar.text:SetTextColor(0, 0.77, 1)
+    else
+        bar.text:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+    end
+
+    lastState = state
 end
 
 -- Refresh whenever something about talents changes; restore the saved layout at login
