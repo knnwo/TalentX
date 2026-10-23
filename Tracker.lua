@@ -12,6 +12,28 @@ bar:SetBackdrop({
 bar:SetBackdropColor(0, 0, 0, 0.6)
 bar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
+-- Saving and restoring position and size (stored in TalentXDB.tracker)
+local function SaveBarPosition()
+    TalentXDB = TalentXDB or {}
+    local point, _, relPoint, x, y = bar:GetPoint()
+    TalentXDB.tracker = {
+        point = point,
+        relPoint = relPoint,
+        x = x,
+        y = y,
+        width = bar:GetWidth(),
+        height = bar:GetHeight(),
+    }
+end
+
+local function RestoreBar()
+    local s = TalentXDB and TalentXDB.tracker
+    if not s then return end
+    bar:ClearAllPoints()
+    bar:SetPoint(s.point or "CENTER", UIParent, s.relPoint or "CENTER", s.x or 0, s.y or 200)
+    bar:SetSize(s.width or 220, s.height or 28)
+end
+
 -- Dragging: hold the left mouse button on the bar and move it
 bar:SetMovable(true)
 bar:SetClampedToScreen(true)
@@ -22,6 +44,7 @@ bar:SetScript("OnDragStart", function(self)
 end)
 bar:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
+    SaveBarPosition()
 end)
 
 local text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -48,6 +71,7 @@ grip:SetScript("OnMouseDown", function()
 end)
 grip:SetScript("OnMouseUp", function()
     bar:StopMovingOrSizing()
+    SaveBarPosition()
 end)
 
 -- Keep the text sized to the bar
@@ -60,6 +84,15 @@ local function ApplySize(self, width, height)
 end
 bar:SetScript("OnSizeChanged", ApplySize)
 ApplySize(bar, bar:GetWidth(), bar:GetHeight())
+
+-- Applies the saved options: shown or hidden, locked or unlocked
+function ns.ApplyTrackerSettings()
+    local db = TalentXDB or {}
+    local locked = db.trackerLocked == true
+    bar:SetShown(db.trackerShown ~= false)
+    bar:EnableMouse(not locked)
+    grip:SetShown(not locked)
+end
 
 -- Works out the name of the currently selected loadout
 local function GetActiveLoadoutName()
@@ -83,11 +116,16 @@ function ns.UpdateTracker()
     bar.text:SetText(GetActiveLoadoutName())
 end
 
--- Refresh whenever something about talents changes
+-- Refresh whenever something about talents changes; restore the saved layout at login
+bar:RegisterEvent("PLAYER_LOGIN")
 bar:RegisterEvent("PLAYER_ENTERING_WORLD")
 bar:RegisterEvent("TRAIT_CONFIG_UPDATED")
 bar:RegisterEvent("TRAIT_CONFIG_LIST_UPDATED")
 bar:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
-bar:SetScript("OnEvent", function()
+bar:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_LOGIN" then
+        RestoreBar()
+        ns.ApplyTrackerSettings()
+    end
     C_Timer.After(0.3, ns.UpdateTracker)
 end)

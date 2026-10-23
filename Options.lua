@@ -79,12 +79,43 @@ restoreBtn:SetScript("OnClick", function()
     C_Timer.After(1.2, RefreshRestoreButton)
 end)
 
+-- Loadout tracker section
+local trackerTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+trackerTitle:SetPoint("TOPLEFT", restoreBtn, "BOTTOMLEFT", 0, -28)
+trackerTitle:SetText("Loadout tracker bar")
+
+local showCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+showCheck:SetPoint("TOPLEFT", trackerTitle, "BOTTOMLEFT", 0, -8)
+
+local showLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+showLabel:SetPoint("LEFT", showCheck, "RIGHT", 4, 0)
+showLabel:SetText("Show the tracker bar")
+
+showCheck:SetScript("OnClick", function(self)
+    TalentXDB.trackerShown = self:GetChecked() and true or false
+    if ns.ApplyTrackerSettings then ns.ApplyTrackerSettings() end
+end)
+
+local lockCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+lockCheck:SetPoint("TOPLEFT", showCheck, "BOTTOMLEFT", 0, -8)
+
+local lockLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+lockLabel:SetPoint("LEFT", lockCheck, "RIGHT", 4, 0)
+lockLabel:SetText("Lock position and size")
+
+lockCheck:SetScript("OnClick", function(self)
+    TalentXDB.trackerLocked = self:GetChecked() and true or false
+    if ns.ApplyTrackerSettings then ns.ApplyTrackerSettings() end
+end)
+
 -- Saved settings aren't loaded when this file runs, so read them each time the page opens
 panel:SetScript("OnShow", function()
     altCheck:SetChecked(TalentXDB and TalentXDB.altClick)
     tipCheck:SetChecked(TalentXDB and TalentXDB.showTooltip ~= false)
     slider:SetValue((TalentXDB and TalentXDB.maxUndo) or 5)
     RefreshRestoreButton()
+    showCheck:SetChecked(not (TalentXDB and TalentXDB.trackerShown == false))
+    lockCheck:SetChecked(TalentXDB and TalentXDB.trackerLocked == true)
 end)
 
 -- Register the page in the game's AddOns settings
