@@ -12,6 +12,18 @@ bar:SetBackdrop({
 bar:SetBackdropColor(0, 0, 0, 0.6)
 bar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
+-- Dragging: hold the left mouse button on the bar and move it
+bar:SetMovable(true)
+bar:SetClampedToScreen(true)
+bar:EnableMouse(true)
+bar:RegisterForDrag("LeftButton")
+bar:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+end)
+bar:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+end)
+
 local text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 text:SetPoint("CENTER")
 bar.text = text
