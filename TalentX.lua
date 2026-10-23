@@ -209,18 +209,36 @@ Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, co
     end
 end)
 
--- Defaults for saved settings
+-- Backups expire on a fresh login (not on /reload). The newest one is always kept.
+local function PurgeOldBackups()
+    local list = TalentXDB and TalentXDB.deleted
+    if not list then return end
+    while #list > 1 do
+        table.remove(list)
+    end
+end
+
+-- Defaults for saved settings, and the login cleanup
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
-frame:SetScript("OnEvent", function()
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
     TalentXDB = TalentXDB or {}
+
+    if event == "PLAYER_ENTERING_WORLD" then
+        if isInitialLogin then
+            PurgeOldBackups()
+        end
+        return
+    end
+
+    -- PLAYER_LOGIN: fill in any missing settings
     if TalentXDB.altClick == nil then
         TalentXDB.altClick = true
     end
     if TalentXDB.showTooltip == nil then
         TalentXDB.showTooltip = true
     end
-    -- NEW (slider)
     if TalentXDB.maxUndo == nil then
         TalentXDB.maxUndo = 5
     end
