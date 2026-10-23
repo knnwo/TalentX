@@ -1,0 +1,6 @@
+# Local build output and downloaded packages
+.release/
+*.zip
+
+# Backup files
+*.bak
