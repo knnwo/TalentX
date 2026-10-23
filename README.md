@@ -13,6 +13,7 @@ you change your mind, and an on-screen bar that shows which loadout is active.
 - Backups expire on your next fresh login, and the newest backup is always kept as a safety net
 - Loadout tracker bar: a small on-screen bar showing the active loadout. Drag it to move,
   drag the corner grip to resize. Position and size are remembered
+- The tracker bar turns red and warns you when no loadout is selected (the game sometimes drops the selection between sessions)
 - Options page in the game's AddOns settings
 
 ## Usage
