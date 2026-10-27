@@ -7,7 +7,15 @@
         "Menu",
         "PlayerSpellsFrame",
         "GameTooltip",
-        "UIErrorsFrame"
+        "UIErrorsFrame",
+        "ClassTalentHelper",
+        "StaticPopupSpecial_Show",
+        "TALENT_FRAME_DROP_DOWN_NEW_LOADOUT",
+        "TALENT_FRAME_DROP_DOWN_IMPORT",
+        "StaticPopupDialogs",
+        "CLOSE",
+        "StaticPopup_Show",
+        "TALENT_FRAME_DROP_DOWN_EXPORT"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {
