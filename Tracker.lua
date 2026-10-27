@@ -54,11 +54,8 @@ bar:SetScript("OnMouseDown", function()
     dragged = false
 end)
 bar:SetScript("OnMouseUp", function(self, button)
-    if dragged then return end
-    if button == "LeftButton" then
+    if button == "LeftButton" and not dragged then
         ns.ShowLoadoutMenu(self)
-    elseif button == "RightButton" then
-        ns.OpenLoadoutMenu(self) -- the old Blizzard-style menu, kept for Import and Share until step 2
     end
 end)
 
@@ -237,133 +234,6 @@ local function SwitchToLoadout(configID, name)
 end
 
 ns.SwitchToLoadout = SwitchToLoadout
-
--- Opens one of Blizzard's own loadout windows:
--- "ClassTalentLoadoutCreateDialog" (new loadout) or "ClassTalentLoadoutImportDialog" (import)
-local function OpenBlizzardDialog(frameName)
-    if InCombatLockdown() then
-        print("|cffff4040TalentX:|r you can't change talents in combat.")
-        return
-    end
-    if not C_ClassTalents.CanCreateNewConfig() then
-        print("|cffff4040TalentX:|r no free loadout slot left.")
-        return
-    end
-
-    -- Blizzard loads its talent window code on demand
-    if not _G[frameName] then
-        pcall(C_AddOns.LoadAddOn, "Blizzard_PlayerSpells")
-    end
-
-    local dialog = _G[frameName]
-    if not dialog then
-        print("|cffff4040TalentX:|r couldn't find " .. frameName)
-        return
-    end
-
-    if dialog.ShowDialog then
-        dialog:ShowDialog()
-    elseif StaticPopupSpecial_Show then
-        StaticPopupSpecial_Show(dialog)
-    else
-        dialog:Show()
-    end
-end
-
--- Share: a small box showing the loadout string, ready to copy with Ctrl+C
-local shareString = ""
-
-StaticPopupDialogs["TALENTX_SHARE_LOADOUT"] = {
-    text = "Loadout string for \"%s\"\nPress Ctrl+C to copy it, then close this window.",
-    button1 = CLOSE,
-    hasEditBox = true,
-    editBoxWidth = 350,
-    OnShow = function(self)
-        local editBox = (self.GetEditBox and self:GetEditBox()) or self.editBox or self.EditBox
-        if not editBox then return end
-        editBox:SetText(shareString)
-        editBox:HighlightText()
-        editBox:SetFocus()
-    end,
-    EditBoxOnEscapePressed = function(editBox)
-        editBox:GetParent():Hide()
-    end,
-    EditBoxOnEnterPressed = function(editBox)
-        editBox:GetParent():Hide()
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
-}
-
-local function ShareLoadout(configID, name)
-    local str = C_Traits.GenerateImportString(configID)
-    if not str or str == "" then
-        print("|cffff4040TalentX:|r couldn't get a loadout string for " .. name)
-        return
-    end
-    shareString = str
-    StaticPopup_Show("TALENTX_SHARE_LOADOUT", name)
-end
-
--- Opens a menu of this spec's loadouts
-function ns.OpenLoadoutMenu(owner)
-    local specID = PlayerUtil.GetCurrentSpecID()
-    if not specID then return end
-
-    local okActive, activeID = pcall(C_ClassTalents.GetLastSelectedSavedConfigID, specID)
-    if not okActive then activeID = nil end
-    local starterActive = C_ClassTalents.GetStarterBuildActive and C_ClassTalents.GetStarterBuildActive()
-
-    MenuUtil.CreateContextMenu(owner, function(ownerRegion, rootDescription)
-        rootDescription:CreateTitle("Talent loadouts")
-
-        for _, id in ipairs(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
-            local info = C_Traits.GetConfigInfo(id)
-            local name = info and info.name
-            if name then
-                rootDescription:CreateRadio(name,
-                    function() return (not starterActive) and activeID == id end,
-                    function() SwitchToLoadout(id, name) end)
-            end
-        end
-
-        if C_ClassTalents.GetHasStarterBuild and C_ClassTalents.GetHasStarterBuild() then
-            rootDescription:CreateRadio("|cff00c4feStarter Build|r",
-                function() return starterActive end,
-                function() SwitchToLoadout(STARTER_BUILD_ID, "Starter Build") end)
-        end
-
-        rootDescription:CreateDivider()
-
-        local canCreate = C_ClassTalents.CanCreateNewConfig()
-
-        local importButton = rootDescription:CreateButton(TALENT_FRAME_DROP_DOWN_IMPORT or "Import",
-            function() OpenBlizzardDialog("ClassTalentLoadoutImportDialog") end)
-
-        -- Greyed out when there is no free loadout slot
-        if not canCreate then
-            importButton:SetEnabled(false)
-        end
-
-
-        -- Share: a submenu with one entry per loadout
-        local shareButton = rootDescription:CreateButton(TALENT_FRAME_DROP_DOWN_EXPORT or "Share")
-        local hasLoadouts = false
-        for _, id in ipairs(C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
-            local info = C_Traits.GetConfigInfo(id)
-            local name = info and info.name
-            if name then
-                hasLoadouts = true
-                shareButton:CreateButton(name, function() ShareLoadout(id, name) end)
-            end
-        end
-        if not hasLoadouts then
-            shareButton:SetEnabled(false)
-        end
-    end)
-end
 
 -- Refresh whenever something about talents changes; restore the saved layout at login
 bar:RegisterEvent("PLAYER_LOGIN")
