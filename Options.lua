@@ -89,7 +89,7 @@ showCheck:SetPoint("TOPLEFT", trackerTitle, "BOTTOMLEFT", 0, -8)
 
 local showLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 showLabel:SetPoint("LEFT", showCheck, "RIGHT", 4, 0)
-showLabel:SetText("Show the tracker bar")
+showLabel:SetText("Show the loadout bar")
 
 showCheck:SetScript("OnClick", function(self)
     TalentXDB.trackerShown = self:GetChecked() and true or false
@@ -101,7 +101,7 @@ lockCheck:SetPoint("TOPLEFT", showCheck, "BOTTOMLEFT", 0, -8)
 
 local lockLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 lockLabel:SetPoint("LEFT", lockCheck, "RIGHT", 4, 0)
-lockLabel:SetText("Lock position and size")
+lockLabel:SetText("Lock position and size (the bar stays clickable)")
 
 lockCheck:SetScript("OnClick", function(self)
     TalentXDB.trackerLocked = self:GetChecked() and true or false

@@ -1,10 +1,9 @@
 local addonName, ns = ...
 
 -- Look and feel: change these values to restyle the menu
-local ROW_HEIGHT  = 26
 local PADDING     = 6
 local MENU_MIN_W  = 200
-local FONT_SIZE   = 13
+local ACTION_W    = 38    -- room kept at the right of every row for the delete X
 
 local COLOR_BG      = { 0.07, 0.07, 0.08, 0.96 }
 local COLOR_BORDER  = { 0.25, 0.25, 0.28, 1 }
@@ -12,8 +11,8 @@ local COLOR_HOVER   = { 1, 1, 1, 0.08 }
 local COLOR_LINE    = { 1, 1, 1, 0.08 }
 local COLOR_TEXT    = { 0.92, 0.92, 0.92 }
 local COLOR_MUTED   = { 0.55, 0.55, 0.60 }
-local COLOR_ACTIVE  = { 1, 0.82, 0 }      -- the loadout you are on
-local COLOR_STARTER = { 0, 0.77, 1 }      -- the Starter Build
+local COLOR_ACTIVE  = { 1, 0.82, 0 }       -- the loadout you are on
+local COLOR_STARTER = { 0, 0.77, 1 }       -- the Starter Build
 
 local fontPath = GameFontNormal:GetFont()
 
@@ -58,6 +57,20 @@ headerLine:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -PADDING, -(PADDING + 20))
 
 local LIST_TOP = PADDING + 24
 
+-- Hidden text used to measure how wide the menu has to be
+local measure = menu:CreateFontString(nil, "OVERLAY")
+measure:SetPoint("TOPLEFT", menu, "TOPLEFT", 0, 0)
+measure:SetAlpha(0)
+
+-- The red X texture (falls back to the ready-check cross if the atlas is missing)
+local function SetCrossTexture(tex)
+    if C_Texture.GetAtlasInfo("common-icon-redx") then
+        tex:SetAtlas("common-icon-redx")
+    else
+        tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+    end
+end
+
 -- Rows are created once and reused every time the menu opens
 local rows = {}
 
@@ -66,7 +79,6 @@ local function GetRow(index)
     if row then return row end
 
     row = CreateFrame("Button", nil, menu)
-    row:SetHeight(ROW_HEIGHT)
 
     row.hover = row:CreateTexture(nil, "BACKGROUND")
     row.hover:SetAllPoints()
@@ -79,14 +91,70 @@ local function GetRow(index)
     row.marker:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 4)
 
     row.text = row:CreateFontString(nil, "OVERLAY")
-    row.text:SetFont(fontPath, FONT_SIZE, "")
+    row.text:SetFont(fontPath, 13, "")
     row.text:SetPoint("LEFT", row, "LEFT", 12, 0)
-    row.text:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -ACTION_W, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
 
-    row:SetScript("OnEnter", function(self) self.hover:Show() end)
-    row:SetScript("OnLeave", function(self) self.hover:Hide() end)
+    -- Keep the row highlighted while the mouse is over the row or the X inside it
+    local function UpdateHover()
+        if row:IsMouseOver() then
+            row.hover:Show()
+        else
+            row.hover:Hide()
+        end
+    end
+    row:SetScript("OnEnter", UpdateHover)
+    row:SetScript("OnLeave", UpdateHover)
+
+    -- The red X that deletes the loadout
+    local del = CreateFrame("Button", nil, row)
+    del:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    del:SetHitRectInsets(-4, -4, -4, -4)
+    del:SetFrameLevel(row:GetFrameLevel() + 5)
+
+    del.icon = del:CreateTexture(nil, "OVERLAY")
+    del.icon:SetAllPoints()
+    SetCrossTexture(del.icon)
+    del.icon:SetAlpha(0.7)
+
+    local glow = del:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAllPoints()
+    SetCrossTexture(glow)
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.6)
+
+    del:SetScript("OnEnter", function(self)
+        self.icon:SetAlpha(1)
+        if TalentXDB and TalentXDB.showTooltip == false then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Delete loadout", 1, 0.1, 0.1)
+        if self.loadoutName then
+            GameTooltip:AddLine(self.loadoutName, 1, 1, 1)
+        end
+        if TalentXDB and TalentXDB.altClick then
+            GameTooltip:AddLine("Alt + Left-click to delete", 0.8, 0.8, 0.8)
+        end
+        GameTooltip:Show()
+    end)
+    del:SetScript("OnLeave", function(self)
+        self.icon:SetAlpha(0.7)
+        GameTooltip:Hide()
+        UpdateHover()
+    end)
+    del:SetScript("OnClick", function()
+        if TalentXDB and TalentXDB.altClick and not IsAltKeyDown() then
+            print("|cffff4040TalentX:|r hold Alt and Left-click to delete.")
+            return
+        end
+        GameTooltip:Hide()
+        menu:Hide()
+        if row.onDelete then row.onDelete() end
+    end)
+    del:Hide()
+    row.del = del
+
     row:SetScript("OnClick", function(self)
         menu:Hide()
         if self.onClick then self.onClick() end
@@ -95,11 +163,6 @@ local function GetRow(index)
     rows[index] = row
     return row
 end
-
--- Hidden text used to measure how wide the menu has to be
-local measure = menu:CreateFontString(nil, "OVERLAY")
-measure:SetPoint("TOPLEFT", menu, "TOPLEFT", 0, 0)
-measure:SetAlpha(0)
 
 -- The text settings from the options panel (with defaults)
 local function GetTextSettings()
@@ -183,6 +246,20 @@ function ns.ShowLoadoutMenu(owner)
 
         row.hover:Hide()
         row.onClick = function() ns.SwitchToLoadout(entry.id, entry.name) end
+
+        -- The red X: not on the loadout you are on (it is protected) and not on the Starter Build
+        local canDelete = (not entry.active) and (not entry.starter)
+        local xSize = math.max(14, math.floor(fontSize * 1.2))
+        row.del:SetSize(xSize, xSize)
+        row.del.loadoutName = entry.name
+        row.del.icon:SetAlpha(0.7)
+        row.del:SetShown(canDelete)
+        if canDelete then
+            row.onDelete = function() ns.DeleteLoadout(entry.id, entry.name) end
+        else
+            row.onDelete = nil
+        end
+
         row:Show()
     end
     for i = #entries + 1, #rows do
@@ -190,8 +267,8 @@ function ns.ShowLoadoutMenu(owner)
     end
 
     -- Size and place the panel: under the bar, or above it when the bar sits low on screen
-    -- Wide enough for the longest name (12 left + 8 right text padding, plus the panel padding)
-    local width = math.max(MENU_MIN_W, owner:GetWidth(), widest + 32 + PADDING * 2)
+    -- Wide enough for the longest name, plus the room kept for the red X
+    local width = math.max(MENU_MIN_W, owner:GetWidth(), widest + 12 + ACTION_W + PADDING * 2 + 4)
     menu:SetSize(width, LIST_TOP + #entries * rowHeight + PADDING)
     menu:ClearAllPoints()
     local _, centerY = owner:GetCenter()

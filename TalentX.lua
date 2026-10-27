@@ -40,6 +40,8 @@ local function DeleteLoadout(configID, name)
     end
 end
 
+ns.DeleteLoadout = DeleteLoadout
+
 local function SetCrossTexture(tex)
     if C_Texture.GetAtlasInfo("common-icon-redx") then
         tex:SetAtlas("common-icon-redx")
