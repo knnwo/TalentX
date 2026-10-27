@@ -174,7 +174,13 @@ function ns.UpdateTracker()
         -- Same blue as "Starter Build" in the loadout menu
         bar.text:SetTextColor(0, 0.77, 1)
     else
-        bar.text:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+        -- Your chosen "active loadout" colour (set in the options)
+        local c = TalentXDB and TalentXDB.menuActiveColor
+        if c then
+            bar.text:SetTextColor(c[1], c[2], c[3])
+        else
+            bar.text:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+        end
     end
 
     lastState = state

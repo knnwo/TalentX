@@ -96,10 +96,27 @@ local function GetRow(index)
     return row
 end
 
+-- Hidden text used to measure how wide the menu has to be
+local measure = menu:CreateFontString(nil, "OVERLAY")
+measure:SetPoint("TOPLEFT", menu, "TOPLEFT", 0, 0)
+measure:SetAlpha(0)
+
+-- The text settings from the options panel (with defaults)
+local function GetTextSettings()
+    local db = TalentXDB or {}
+    return db.menuFontSize or 13,
+           db.menuTextColor or COLOR_TEXT,
+           db.menuActiveColor or COLOR_ACTIVE
+end
+
 -- Opens the menu next to the given frame (the tracker bar)
 function ns.ShowLoadoutMenu(owner)
     local specID = PlayerUtil.GetCurrentSpecID()
     if not specID then return end
+
+    local fontSize, textColor, activeColor = GetTextSettings()
+    local rowHeight = fontSize + 13
+    local widest = 0
 
     local okActive, activeID = pcall(C_ClassTalents.GetLastSelectedSavedConfigID, specID)
     if not okActive then activeID = nil end
@@ -134,23 +151,30 @@ function ns.ShowLoadoutMenu(owner)
     -- Fill the rows
     for i, entry in ipairs(entries) do
         local row = GetRow(i)
-        local y = -(LIST_TOP + (i - 1) * ROW_HEIGHT)
+        local y = -(LIST_TOP + (i - 1) * rowHeight)
+        row:SetHeight(rowHeight)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", menu, "TOPLEFT", PADDING, y)
         row:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -PADDING, y)
 
+        row.text:SetFont(fontPath, fontSize, "")
         row.text:SetText(entry.name)
 
-        local color = COLOR_TEXT
+        measure:SetFont(fontPath, fontSize, "")
+        measure:SetText(entry.name)
+        widest = math.max(widest, measure:GetStringWidth())
+
+        -- Your colours apply to loadouts; the Starter Build always stays blue
+        local color = textColor
         if entry.starter then
             color = COLOR_STARTER
         elseif entry.active then
-            color = COLOR_ACTIVE
+            color = activeColor
         end
         row.text:SetTextColor(color[1], color[2], color[3])
 
         if entry.active then
-            local markerColor = entry.starter and COLOR_STARTER or COLOR_ACTIVE
+            local markerColor = entry.starter and COLOR_STARTER or activeColor
             row.marker:SetColorTexture(markerColor[1], markerColor[2], markerColor[3], 1)
             row.marker:Show()
         else
@@ -166,7 +190,9 @@ function ns.ShowLoadoutMenu(owner)
     end
 
     -- Size and place the panel: under the bar, or above it when the bar sits low on screen
-    menu:SetSize(math.max(MENU_MIN_W, owner:GetWidth()), LIST_TOP + #entries * ROW_HEIGHT + PADDING)
+    -- Wide enough for the longest name (12 left + 8 right text padding, plus the panel padding)
+    local width = math.max(MENU_MIN_W, owner:GetWidth(), widest + 32 + PADDING * 2)
+    menu:SetSize(width, LIST_TOP + #entries * rowHeight + PADDING)
     menu:ClearAllPoints()
     local _, centerY = owner:GetCenter()
     if centerY and centerY < UIParent:GetHeight() / 2 then

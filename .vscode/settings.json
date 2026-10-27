@@ -16,7 +16,8 @@
         "CLOSE",
         "StaticPopup_Show",
         "TALENT_FRAME_DROP_DOWN_EXPORT",
-        "UISpecialFrames"
+        "UISpecialFrames",
+        "ColorPickerFrame"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {

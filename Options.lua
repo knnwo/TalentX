@@ -139,6 +139,102 @@ resetBtn:SetScript("OnClick", function()
     if ns.ResetTracker then ns.ResetTracker() end
 end)
 
+-- Section: loadout menu text
+local menuHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+menuHeader:SetPoint("TOPLEFT", resetBtn, "BOTTOMLEFT", 0, -28)
+menuHeader:SetText("Loadout menu")
+
+-- Slider: text size
+local sizeSlider = CreateFrame("Slider", "TalentXMenuSizeSlider", panel, "OptionsSliderTemplate")
+sizeSlider:SetPoint("TOPLEFT", menuHeader, "BOTTOMLEFT", 6, -24)
+sizeSlider:SetWidth(220)
+sizeSlider:SetMinMaxValues(10, 20)
+sizeSlider:SetValueStep(1)
+sizeSlider:SetObeyStepOnDrag(true)
+
+local sizeText = sizeSlider.Text or _G["TalentXMenuSizeSliderText"]
+local sizeLow = sizeSlider.Low or _G["TalentXMenuSizeSliderLow"]
+local sizeHigh = sizeSlider.High or _G["TalentXMenuSizeSliderHigh"]
+sizeLow:SetText("10")
+sizeHigh:SetText("20")
+
+sizeSlider:SetScript("OnValueChanged", function(self, value)
+    value = math.floor(value + 0.5)
+    sizeText:SetText("Menu text size: " .. value)
+    if not TalentXDB then return end
+    TalentXDB.menuFontSize = value
+end)
+
+-- A small colour swatch with a label; clicking it opens the game's colour picker
+local function CreateColorSwatch(label, dbKey, default)
+    local swatch = CreateFrame("Button", nil, panel)
+    swatch:SetSize(24, 24)
+
+    local border = swatch:CreateTexture(nil, "BACKGROUND")
+    border:SetAllPoints()
+    border:SetColorTexture(0.4, 0.4, 0.4, 1)
+
+    local fill = swatch:CreateTexture(nil, "ARTWORK")
+    fill:SetPoint("TOPLEFT", 1, -1)
+    fill:SetPoint("BOTTOMRIGHT", -1, 1)
+
+    local caption = swatch:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    caption:SetPoint("LEFT", swatch, "RIGHT", 8, 0)
+    caption:SetText(label)
+
+    local function GetColor()
+        local c = (TalentXDB and TalentXDB[dbKey]) or default
+        return c[1], c[2], c[3]
+    end
+
+    function swatch:Refresh()
+        fill:SetColorTexture(GetColor())
+        if ns.UpdateTracker then ns.UpdateTracker() end -- the bar follows the colours live
+    end
+
+    swatch:SetScript("OnClick", function(self)
+        local r, g, b = GetColor()
+        ColorPickerFrame:SetupColorPickerAndShow({
+            r = r, g = g, b = b,
+            hasOpacity = false,
+            swatchFunc = function()
+                local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+                if TalentXDB then TalentXDB[dbKey] = { nr, ng, nb } end
+                self:Refresh()
+            end,
+            cancelFunc = function()
+                if TalentXDB then TalentXDB[dbKey] = { r, g, b } end
+                self:Refresh()
+            end,
+        })
+    end)
+
+    return swatch
+end
+
+-- These defaults must match the ones in Menu.lua
+local textSwatch = CreateColorSwatch("Loadout text color", "menuTextColor", { 0.92, 0.92, 0.92 })
+textSwatch:SetPoint("TOPLEFT", sizeSlider, "BOTTOMLEFT", -6, -24)
+
+local activeSwatch = CreateColorSwatch("Active loadout color (menu and bar)", "menuActiveColor", { 1, 0.82, 0 })
+activeSwatch:SetPoint("TOPLEFT", textSwatch, "BOTTOMLEFT", 0, -10)
+
+-- Button: back to the default text style
+local textResetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+textResetBtn:SetSize(170, 24)
+textResetBtn:SetPoint("LEFT", menuHeader, "RIGHT", 24, 0)
+textResetBtn:SetText("Reset menu text style")
+textResetBtn:SetScript("OnClick", function()
+    if TalentXDB then
+        TalentXDB.menuFontSize = nil
+        TalentXDB.menuTextColor = nil
+        TalentXDB.menuActiveColor = nil
+    end
+    sizeSlider:SetValue(13)
+    textSwatch:Refresh()
+    activeSwatch:Refresh()
+end)
+
 -- Saved settings aren't loaded when this file runs, so read them each time the page opens
 panel:SetScript("OnShow", function()
     altCheck:SetChecked(TalentXDB and TalentXDB.altClick)
@@ -148,6 +244,9 @@ panel:SetScript("OnShow", function()
     showCheck:SetChecked(not (TalentXDB and TalentXDB.trackerShown == false))
     lockCheck:SetChecked(TalentXDB and TalentXDB.trackerLocked == true)
     opacitySlider:SetValue(((TalentXDB and TalentXDB.trackerOpacity) or 0.6) * 100)
+    sizeSlider:SetValue((TalentXDB and TalentXDB.menuFontSize) or 13)
+    textSwatch:Refresh()
+    activeSwatch:Refresh()
 end)
 
 
