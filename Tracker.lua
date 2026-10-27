@@ -54,8 +54,11 @@ bar:SetScript("OnMouseDown", function()
     dragged = false
 end)
 bar:SetScript("OnMouseUp", function(self, button)
-    if button == "LeftButton" and not dragged then
-        ns.OpenLoadoutMenu(self)
+    if dragged then return end
+    if button == "LeftButton" then
+        ns.ShowLoadoutMenu(self)
+    elseif button == "RightButton" then
+        ns.OpenLoadoutMenu(self) -- the old Blizzard-style menu, kept for Import and Share until step 2
     end
 end)
 
@@ -177,8 +180,8 @@ function ns.UpdateTracker()
     lastState = state
 end
 
--- The Starter Build's config ID (the game uses -2 for it)
 local STARTER_BUILD_ID = (Constants and Constants.TraitConsts and Constants.TraitConsts.STARTER_BUILD_TRAIT_CONFIG_ID) or -2
+ns.STARTER_BUILD_ID = STARTER_BUILD_ID
 
 -- Switches to a saved loadout or the Starter Build by its config ID (out of combat only)
 local function SwitchToLoadout(configID, name)
@@ -226,6 +229,8 @@ local function SwitchToLoadout(configID, name)
     end
     C_Timer.After(0.3, ns.UpdateTracker)
 end
+
+ns.SwitchToLoadout = SwitchToLoadout
 
 -- Opens one of Blizzard's own loadout windows:
 -- "ClassTalentLoadoutCreateDialog" (new loadout) or "ClassTalentLoadoutImportDialog" (import)

@@ -15,7 +15,8 @@
         "StaticPopupDialogs",
         "CLOSE",
         "StaticPopup_Show",
-        "TALENT_FRAME_DROP_DOWN_EXPORT"
+        "TALENT_FRAME_DROP_DOWN_EXPORT",
+        "UISpecialFrames"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {
