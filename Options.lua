@@ -214,7 +214,7 @@ end
 
 -- These defaults must match the ones in Menu.lua
 local textSwatch = CreateColorSwatch("Loadout text color", "menuTextColor", { 0.92, 0.92, 0.92 })
-textSwatch:SetPoint("TOPLEFT", sizeSlider, "BOTTOMLEFT", -6, -24)
+textSwatch:SetPoint("TOPLEFT", sizeSlider, "TOPRIGHT", 40, 4)
 
 local activeSwatch = CreateColorSwatch("Active loadout color (menu and bar)", "menuActiveColor", { 1, 0.82, 0 })
 activeSwatch:SetPoint("TOPLEFT", textSwatch, "BOTTOMLEFT", 0, -10)
@@ -222,7 +222,7 @@ activeSwatch:SetPoint("TOPLEFT", textSwatch, "BOTTOMLEFT", 0, -10)
 -- Button: back to the default text style
 local textResetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 textResetBtn:SetSize(170, 24)
-textResetBtn:SetPoint("LEFT", menuHeader, "RIGHT", 24, 0)
+textResetBtn:SetPoint("TOPLEFT", sizeSlider, "BOTTOMLEFT", -6, -20)
 textResetBtn:SetText("Reset menu text style")
 textResetBtn:SetScript("OnClick", function()
     if TalentXDB then
