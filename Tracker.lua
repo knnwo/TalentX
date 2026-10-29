@@ -186,46 +186,64 @@ end
 local STARTER_BUILD_ID = (Constants and Constants.TraitConsts and Constants.TraitConsts.STARTER_BUILD_TRAIT_CONFIG_ID) or -2
 ns.STARTER_BUILD_ID = STARTER_BUILD_ID
 
--- Switches to a saved loadout or the Starter Build by its config ID (out of combat only)
+-- Shows a red on-screen message and a chat line when the game refuses a switch
+-- (for example "You can't change that talent choice while X is on cooldown.").
+local function ReportSwitchFailure(name, reason)
+    local hasReason = type(reason) == "string" and reason ~= ""
+    if not hasReason then
+        reason = "the game refused to load it."
+    end
+    if UIErrorsFrame then
+        UIErrorsFrame:AddMessage(hasReason and reason or ("TalentX: couldn't switch to \"" .. name .. "\"."), 1, 0.1, 0.1)
+    end
+    print("|cffff4040TalentX:|r couldn't switch to \"" .. name .. "\" - " .. reason)
+end
+
 local function SwitchToLoadout(configID, name)
     if InCombatLockdown() then
         print("|cffff4040TalentX:|r you can't change talents in combat.")
         return
     end
-
     local specID = PlayerUtil.GetCurrentSpecID()
     if not specID then return end
 
-    -- Preferred: let Blizzard's own talents code do the switch, so the starter
-    -- build flag, the talents window dropdown and the selection all stay in sync
+    -- Preferred: let Blizzard's own talents code do the switch, so its dropdown,
+    -- the Starter Build flag and the "Changing Talents" cast all stay in sync.
     if not PlayerSpellsFrame then
         pcall(C_AddOns.LoadAddOn, "Blizzard_PlayerSpells")
     end
     local frame = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
     if frame and frame.LoadConfigInternal then
-        if pcall(frame.LoadConfigInternal, frame, configID, true) then
+        local ok, success, changeError = pcall(frame.LoadConfigInternal, frame, configID, true)
+        if ok then
+            if success == false then
+                -- The game refused (a talent on cooldown, etc.). Blizzard's own dropdown
+                -- rolls back at this point, so do the same when the window is open.
+                if frame.IsShown and frame:IsShown() and frame.RollbackConfig then
+                    pcall(frame.RollbackConfig, frame)
+                end
+                ReportSwitchFailure(name, changeError)
+            end
             C_Timer.After(0.3, ns.UpdateTracker)
             return
         end
     end
 
-    -- Fallback: the game's own calls (the talents window won't know about the switch)
-    local ok, result
+    -- Fallback: the game's own calls
+    local ok, result, changeError
     if configID == STARTER_BUILD_ID then
         ok, result = pcall(C_ClassTalents.SetStarterBuildActive, true)
     else
-        ok, result = pcall(C_ClassTalents.LoadConfig, configID, true)
+        ok, result, changeError = pcall(C_ClassTalents.LoadConfig, configID, true)
     end
-
     if not ok then
         print("|cffff4040TalentX:|r couldn't switch loadout: " .. tostring(result))
         return
     end
     if Enum.LoadConfigResult and result == Enum.LoadConfigResult.Error then
-        print("|cffff4040TalentX:|r the game refused to load \"" .. name .. "\".")
+        ReportSwitchFailure(name, changeError)
         return
     end
-
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, configID)
     if frame and frame.RefreshLoadoutOptions then
         pcall(frame.RefreshLoadoutOptions, frame)

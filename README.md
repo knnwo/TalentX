@@ -17,6 +17,7 @@ between them.
 - The bar can be moved, resized, locked, hidden, and its background opacity changed
 - Menu text size and colours are adjustable
 - Options page in the game's AddOns settings
+- Alerts you on screen when a loadout switch is refused, for example when a talent is on cooldown
 
 ## Usage
 Click the bar to open the loadout menu, then click a loadout to switch to it.
