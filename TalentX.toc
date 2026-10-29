@@ -2,7 +2,7 @@
 ## Title: TalentX
 ## Notes: Delete talent loadouts with a red X (with undo and Alt+Left-click safety), plus a clickable loadout bar for switching.
 ## Author: ContraZoom
-## Version: 0.4.2
+## Version: @project-version@
 ## IconTexture: Interface\RaidFrame\ReadyCheck-NotReady
 ## SavedVariables: TalentXDB
 ## X-Curse-Project-ID: 1733214
