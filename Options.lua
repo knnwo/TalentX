@@ -3,15 +3,45 @@ local addonName, ns = ...
 local panel = CreateFrame("Frame")
 panel.name = "TalentX"
 
-local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+-- All three buttons on this page share one size
+local BUTTON_W, BUTTON_H = 240, 26
+
+-- The page scrolls, so it can never overflow the settings window.
+-- Everything below is created inside "content", which sits inside the scroll frame.
+local scroll
+do
+    local ok, frame = pcall(CreateFrame, "ScrollFrame", "TalentXOptionsScroll", panel, "UIPanelScrollFrameTemplate")
+    if ok and frame then
+        scroll = frame
+    else
+        -- The game's scroll template is missing: use a plain scroll frame that scrolls with the mouse wheel
+        scroll = CreateFrame("ScrollFrame", nil, panel)
+        scroll:EnableMouseWheel(true)
+        scroll:SetScript("OnMouseWheel", function(self, delta)
+            local target = self:GetVerticalScroll() - delta * 30
+            self:SetVerticalScroll(math.max(0, math.min(self:GetVerticalScrollRange(), target)))
+        end)
+    end
+end
+scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -4)
+scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 4)
+
+local content = CreateFrame("Frame", nil, scroll)
+content:SetSize(560, 610)
+scroll:SetScrollChild(content)
+scroll:HookScript("OnSizeChanged", function(self, width)
+    content:SetWidth(math.max(1, width))
+end)
+
+local title = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 16, -16)
 title:SetText("TalentX")
 
 -- Checkbox: require Alt+Left-click
-local altCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+local altCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
 altCheck:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -16)
 
-local altLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+local altLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 altLabel:SetPoint("LEFT", altCheck, "RIGHT", 4, 0)
 altLabel:SetText("Require Alt + Left-click to delete a loadout")
 
@@ -20,10 +50,10 @@ altCheck:SetScript("OnClick", function(self)
 end)
 
 -- Checkbox: show tooltip on the X
-local tipCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+local tipCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
 tipCheck:SetPoint("TOPLEFT", altCheck, "BOTTOMLEFT", 0, -8)
 
-local tipLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+local tipLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 tipLabel:SetPoint("LEFT", tipCheck, "RIGHT", 4, 0)
 tipLabel:SetText("Show a tooltip when hovering the X")
 
@@ -31,8 +61,8 @@ tipCheck:SetScript("OnClick", function(self)
     TalentXDB.showTooltip = self:GetChecked() and true or false
 end)
 
--- NEW (slider): how many deleted loadouts to keep
-local slider = CreateFrame("Slider", "TalentXBackupSlider", panel, "OptionsSliderTemplate")
+-- Slider: how many deleted loadouts to keep
+local slider = CreateFrame("Slider", "TalentXBackupSlider", content, "OptionsSliderTemplate")
 slider:SetPoint("TOPLEFT", tipCheck, "BOTTOMLEFT", 6, -32)
 slider:SetWidth(220)
 slider:SetMinMaxValues(1, 10)
@@ -50,23 +80,20 @@ slider:SetScript("OnValueChanged", function(self, value)
     sliderText:SetText("Deleted loadouts kept per session: " .. value)
     if not TalentXDB then return end
     TalentXDB.maxUndo = value
-    local list = TalentXDB.deleted
-    if list then
-        while #list > value do table.remove(list) end
-    end
+    if ns.TrimBackups then ns.TrimBackups(value) end
 end)
 
 -- Button: restore the most recently deleted loadout
-local restoreBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-restoreBtn:SetSize(240, 26)
+local restoreBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+restoreBtn:SetSize(BUTTON_W, BUTTON_H)
 restoreBtn:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", -6, -32)
 restoreBtn:SetText("Restore last deleted loadout")
 
 local function RefreshRestoreButton()
-    local list = TalentXDB and TalentXDB.deleted
-    if list and #list > 0 then
+    local entry = ns.GetRestorable and ns.GetRestorable()
+    if entry then
         restoreBtn:Enable()
-        restoreBtn:SetText("Restore: " .. (list[1].name or "last deleted"))
+        restoreBtn:SetText("Restore: " .. (entry.name or "last deleted"))
     else
         restoreBtn:Disable()
         restoreBtn:SetText("Nothing to restore")
@@ -74,20 +101,19 @@ local function RefreshRestoreButton()
 end
 
 restoreBtn:SetScript("OnClick", function()
-    print("TalentX: button clicked, RestoreLast is", ns.RestoreLast and "found" or "MISSING")
     if ns.RestoreLast then ns.RestoreLast() end
     C_Timer.After(1.2, RefreshRestoreButton)
 end)
 
 -- Loadout tracker section
-local trackerTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+local trackerTitle = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 trackerTitle:SetPoint("TOPLEFT", restoreBtn, "BOTTOMLEFT", 0, -28)
 trackerTitle:SetText("Loadout tracker bar")
 
-local showCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+local showCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
 showCheck:SetPoint("TOPLEFT", trackerTitle, "BOTTOMLEFT", 0, -8)
 
-local showLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+local showLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 showLabel:SetPoint("LEFT", showCheck, "RIGHT", 4, 0)
 showLabel:SetText("Show the loadout bar")
 
@@ -96,10 +122,10 @@ showCheck:SetScript("OnClick", function(self)
     if ns.ApplyTrackerSettings then ns.ApplyTrackerSettings() end
 end)
 
-local lockCheck = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+local lockCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
 lockCheck:SetPoint("TOPLEFT", showCheck, "BOTTOMLEFT", 0, -8)
 
-local lockLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+local lockLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 lockLabel:SetPoint("LEFT", lockCheck, "RIGHT", 4, 0)
 lockLabel:SetText("Lock position and size (the bar stays clickable)")
 
@@ -109,7 +135,7 @@ lockCheck:SetScript("OnClick", function(self)
 end)
 
 -- Slider: background opacity of the bar
-local opacitySlider = CreateFrame("Slider", "TalentXOpacitySlider", panel, "OptionsSliderTemplate")
+local opacitySlider = CreateFrame("Slider", "TalentXOpacitySlider", content, "OptionsSliderTemplate")
 opacitySlider:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 6, -32)
 opacitySlider:SetWidth(220)
 opacitySlider:SetMinMaxValues(0, 100)
@@ -131,8 +157,8 @@ opacitySlider:SetScript("OnValueChanged", function(self, value)
 end)
 
 -- Button: reset the bar's position and size
-local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-resetBtn:SetSize(200, 26)
+local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+resetBtn:SetSize(BUTTON_W, BUTTON_H)
 resetBtn:SetPoint("TOPLEFT", opacitySlider, "BOTTOMLEFT", -6, -28)
 resetBtn:SetText("Reset bar position and size")
 resetBtn:SetScript("OnClick", function()
@@ -140,12 +166,12 @@ resetBtn:SetScript("OnClick", function()
 end)
 
 -- Section: loadout menu text
-local menuHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+local menuHeader = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 menuHeader:SetPoint("TOPLEFT", resetBtn, "BOTTOMLEFT", 0, -28)
 menuHeader:SetText("Loadout menu")
 
 -- Slider: text size
-local sizeSlider = CreateFrame("Slider", "TalentXMenuSizeSlider", panel, "OptionsSliderTemplate")
+local sizeSlider = CreateFrame("Slider", "TalentXMenuSizeSlider", content, "OptionsSliderTemplate")
 sizeSlider:SetPoint("TOPLEFT", menuHeader, "BOTTOMLEFT", 6, -24)
 sizeSlider:SetWidth(220)
 sizeSlider:SetMinMaxValues(10, 20)
@@ -167,7 +193,7 @@ end)
 
 -- A small colour swatch with a label; clicking it opens the game's colour picker
 local function CreateColorSwatch(label, dbKey, default)
-    local swatch = CreateFrame("Button", nil, panel)
+    local swatch = CreateFrame("Button", nil, content)
     swatch:SetSize(24, 24)
 
     local border = swatch:CreateTexture(nil, "BACKGROUND")
@@ -220,8 +246,8 @@ local activeSwatch = CreateColorSwatch("Active loadout color (menu and bar)", "m
 activeSwatch:SetPoint("TOPLEFT", textSwatch, "BOTTOMLEFT", 0, -10)
 
 -- Button: back to the default text style
-local textResetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-textResetBtn:SetSize(170, 24)
+local textResetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+textResetBtn:SetSize(BUTTON_W, BUTTON_H)
 textResetBtn:SetPoint("TOPLEFT", sizeSlider, "BOTTOMLEFT", -6, -20)
 textResetBtn:SetText("Reset menu text style")
 textResetBtn:SetScript("OnClick", function()
@@ -248,8 +274,6 @@ panel:SetScript("OnShow", function()
     textSwatch:Refresh()
     activeSwatch:Refresh()
 end)
-
-
 
 -- Register the page in the game's AddOns settings
 local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)

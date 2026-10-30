@@ -3,6 +3,42 @@ local addonName, ns = ...
 local debugMode = false
 local allX = {}
 
+-- Backups of deleted loadouts are kept per spec. A spec ID is unique to its class
+-- (Holy Priest and Holy Paladin have different IDs), so specs never get mixed up.
+-- The list is newest first. This keeps at most `limit` backups for each spec.
+local function TrimBackups(limit)
+    local list = TalentXDB and TalentXDB.deleted
+    if not list then return end
+    local count = {}
+    local i = 1
+    while i <= #list do
+        local sid = list[i].specID or 0
+        count[sid] = (count[sid] or 0) + 1
+        if count[sid] > limit then
+            table.remove(list, i)
+        else
+            i = i + 1
+        end
+    end
+end
+
+ns.TrimBackups = TrimBackups
+
+-- The newest backup that belongs to the spec you are in right now
+local function FindRestorable()
+    local list = TalentXDB and TalentXDB.deleted
+    if not list then return nil end
+    local specID = PlayerUtil.GetCurrentSpecID()
+    for _, entry in ipairs(list) do
+        if entry.specID == specID then return entry end
+    end
+    return nil
+end
+
+function ns.GetRestorable()
+    return (FindRestorable())
+end
+
 -- Stores an export string of the loadout so it can be restored later
 local function SaveForUndo(configID, name)
     local ok, str = pcall(C_Traits.GenerateImportString, configID)
@@ -15,14 +51,11 @@ local function SaveForUndo(configID, name)
         name = name,
         importString = str,
         specID = PlayerUtil.GetCurrentSpecID(),
+        classID = select(3, UnitClass("player")),
         time = time(),
     })
 
-    -- NEW (slider): limit comes from the saved setting
-    local limit = TalentXDB.maxUndo or 5
-    while #TalentXDB.deleted > limit do
-        table.remove(TalentXDB.deleted)
-    end
+    TrimBackups(TalentXDB.maxUndo or 5)
     return true
 end
 
@@ -98,18 +131,13 @@ end
 
 local function RestoreLast()
     local list = TalentXDB and TalentXDB.deleted
-    if not list or #list == 0 then
-        print("TalentX: nothing to undo.")
+    local entry = FindRestorable()
+    if not entry then
+        print("TalentX: nothing to undo for this spec.")
         return
     end
     if InCombatLockdown() then
         print("|cffff4040TalentX:|r can't restore loadouts in combat.")
-        return
-    end
-
-    local entry = list[1]
-    if entry.specID ~= PlayerUtil.GetCurrentSpecID() then
-        print("|cffff4040TalentX:|r \"" .. entry.name .. "\" belongs to a different spec. Switch to it first.")
         return
     end
     if not C_ClassTalents.CanCreateNewConfig() then
@@ -211,13 +239,9 @@ Menu.ModifyMenu("MENU_CLASS_TALENT_PROFILE", function(owner, rootDescription, co
     end
 end)
 
--- Backups expire on a fresh login (not on /reload). The newest one is always kept.
+-- Backups expire on a fresh login (not on /reload). The newest one of each spec is kept.
 local function PurgeOldBackups()
-    local list = TalentXDB and TalentXDB.deleted
-    if not list then return end
-    while #list > 1 do
-        table.remove(list)
-    end
+    TrimBackups(1)
 end
 
 -- Defaults for saved settings, and the login cleanup
