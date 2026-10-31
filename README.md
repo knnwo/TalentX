@@ -18,6 +18,7 @@ between them.
 - Menu text size and colours are adjustable
 - Options page in the game's AddOns settings
 - Alerts you on screen when a loadout switch is refused, for example when a talent is on cooldown
+- Shows a reminder to check your build when you enter a dungeon or raid (can be turned off in the options)
 
 ## Usage
 Click the bar to open the loadout menu, then click a loadout to switch to it.

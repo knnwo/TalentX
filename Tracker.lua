@@ -154,6 +154,8 @@ local function GetActiveLoadoutState()
     return "Unknown loadout", "unknown"
 end
 
+ns.GetActiveLoadoutState = GetActiveLoadoutState
+
 local lastState
 
 function ns.UpdateTracker()

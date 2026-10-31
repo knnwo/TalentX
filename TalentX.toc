@@ -11,3 +11,4 @@ TalentX.lua
 Options.lua
 Tracker.lua
 Menu.lua
+Reminder.lua

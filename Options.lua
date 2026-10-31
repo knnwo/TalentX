@@ -27,7 +27,7 @@ scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -4)
 scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 4)
 
 local content = CreateFrame("Frame", nil, scroll)
-content:SetSize(560, 610)
+content:SetSize(560, 730)
 scroll:SetScrollChild(content)
 scroll:HookScript("OnSizeChanged", function(self, width)
     content:SetWidth(math.max(1, width))
@@ -261,6 +261,31 @@ textResetBtn:SetScript("OnClick", function()
     activeSwatch:Refresh()
 end)
 
+-- Section: instance reminder
+local remindHeader = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+remindHeader:SetPoint("TOPLEFT", textResetBtn, "BOTTOMLEFT", 0, -28)
+remindHeader:SetText("Instance reminder")
+
+local remindCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+remindCheck:SetPoint("TOPLEFT", remindHeader, "BOTTOMLEFT", 0, -8)
+
+local remindLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+remindLabel:SetPoint("LEFT", remindCheck, "RIGHT", 4, 0)
+remindLabel:SetText("Remind me to check my build when I enter a dungeon or raid")
+
+remindCheck:SetScript("OnClick", function(self)
+    TalentXDB.remindOnEnter = self:GetChecked() and true or false
+end)
+
+-- Button: show the reminder now, so you can see what it looks like
+local remindBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+remindBtn:SetSize(BUTTON_W, BUTTON_H)
+remindBtn:SetPoint("TOPLEFT", remindCheck, "BOTTOMLEFT", 0, -8)
+remindBtn:SetText("Preview the reminder")
+remindBtn:SetScript("OnClick", function()
+    if ns.ShowBuildReminder then ns.ShowBuildReminder("Preview") end
+end)
+
 -- Saved settings aren't loaded when this file runs, so read them each time the page opens
 panel:SetScript("OnShow", function()
     altCheck:SetChecked(TalentXDB and TalentXDB.altClick)
@@ -273,6 +298,7 @@ panel:SetScript("OnShow", function()
     sizeSlider:SetValue((TalentXDB and TalentXDB.menuFontSize) or 13)
     textSwatch:Refresh()
     activeSwatch:Refresh()
+    remindCheck:SetChecked(not (TalentXDB and TalentXDB.remindOnEnter == false))
 end)
 
 -- Register the page in the game's AddOns settings
