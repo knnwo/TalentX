@@ -109,14 +109,17 @@ local function OnEnteringWorld(isReloadingUi)
     if isReloadingUi then return end
     if TalentXDB and TalentXDB.remindOnEnter == false then return end
 
-    local name, _, _, difficultyName = GetInstanceInfo()
-    local place = name or ""
-    if difficultyName and difficultyName ~= "" then
-        place = place .. "  -  " .. difficultyName
-    end
-
-    -- Wait a moment so the loading screen is gone and the talent info is ready
+    -- Wait a moment so the loading screen is gone and the talent info is ready.
+    -- The difficulty arrives a little after the loading screen too, so read it here.
     C_Timer.After(1.5, function()
+        local name, _, difficultyID, difficultyName = GetInstanceInfo()
+        if not difficultyName or difficultyName == "" then
+            difficultyName = difficultyID and GetDifficultyInfo(difficultyID)
+        end
+        local place = name or ""
+        if difficultyName and difficultyName ~= "" then
+            place = place .. "  -  " .. difficultyName
+        end
         ns.ShowBuildReminder(place)
     end)
 end
