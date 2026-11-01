@@ -7,3 +7,4 @@ ignore:
   - .luarc.json.bak
   - settings.json
   - README.md
+  - TODO.md
